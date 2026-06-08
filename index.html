@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🐱 고양이 통역기 (MVP)</title>
+<style>
+  :root { --bg:#1a1625; --card:#241f33; --accent:#a78bfa; --text:#ece9f5; --muted:#9b94b3; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg);
+    color:var(--text); display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:20px; }
+  h1 { font-size:1.6rem; margin:.4em 0; }
+  .sub { color:var(--muted); font-size:.85rem; margin-bottom:1.2em; text-align:center; }
+  .card { background:var(--card); border-radius:18px; padding:22px; width:100%; max-width:440px;
+    margin-bottom:18px; box-shadow:0 8px 24px rgba(0,0,0,.3); }
+  .card h2 { font-size:1.05rem; margin:0 0 14px; }
+  button { background:var(--accent); color:#1a1625; border:none; border-radius:12px;
+    padding:12px 18px; font-size:1rem; font-weight:600; cursor:pointer; width:100%; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button.rec { background:#f87171; color:#fff; }
+  input[type=text] { width:100%; padding:12px; border-radius:12px; border:1px solid #3a3350;
+    background:#1c1830; color:var(--text); font-size:1rem; margin-bottom:10px; }
+  .result { margin-top:16px; padding:14px; border-radius:12px; background:#1c1830; display:none; }
+  .result.show { display:block; }
+  .label { font-size:1.4rem; font-weight:700; color:var(--accent); }
+  .msg { margin-top:6px; }
+  .bars { margin-top:10px; font-size:.8rem; color:var(--muted); }
+  .bar { height:8px; background:#3a3350; border-radius:4px; margin:3px 0; overflow:hidden; }
+  .bar > div { height:100%; background:var(--accent); }
+  .disc { color:var(--muted); font-size:.72rem; margin-top:8px; }
+  .status { font-size:.8rem; color:var(--muted); margin-top:8px; min-height:1em; }
+</style>
+</head>
+<body>
+  <h1>🐱 고양이 통역기</h1>
+  <div class="sub">MVP · 울음소리로 감정·의도를 <b>추정</b>합니다 (CatMeows 데이터 학습)<br>
+    ※ 정확한 "번역"이 아니라 분류 결과입니다</div>
+
+  <div class="card">
+    <h2>① 고양이 → 사람</h2>
+    <button id="recBtn">🎙️ 녹음 시작</button>
+    <div class="status" id="catStatus"></div>
+    <div class="result" id="catResult">
+      <div class="label" id="catLabel"></div>
+      <div class="msg" id="catMsg"></div>
+      <div class="bars" id="catBars"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>② 사람 → 고양이 <span style="font-size:.7rem;color:var(--muted)">(재미용)</span></h2>
+    <input type="text" id="humanText" placeholder="예: 밥 줄게 / 사랑해 / 놀자" />
+    <button id="sayBtn">🔊 고양이 말로 변환</button>
+    <div class="result" id="humanResult">
+      <div class="label" id="humanMeow"></div>
+      <div class="msg" id="humanKo"></div>
+      <div class="disc" id="humanDisc"></div>
+    </div>
+  </div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
