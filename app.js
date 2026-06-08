@@ -84,33 +84,30 @@ function flatten(arr) {
 
 // ---- 사람 -> 고양이 (클라이언트, 재미용) ----
 const HUMAN_TO_CAT = [
-  { keys: ["밥", "사료", "먹", "간식"], ko: "밥 줄게", meow: "므르르~ 야아아옹! (기대하는 소리)" },
-  { keys: ["사랑", "예뻐", "귀여", "착해", "쓰다듬", "이뻐"], ko: "애정 표현", meow: "그르르릉~ (골골송)" },
-  { keys: ["놀", "장난", "이리", "와봐"], ko: "놀자", meow: "먀악! 먀악! (들뜬 소리)" },
-  { keys: ["미안", "괜찮", "안돼", "하지마"], ko: "진정", meow: "...야옹. (낮고 짧은 소리)" },
+  { keys: ["밥", "사료", "먹", "간식"], ko: "밥 줄게", meow: "므르르~ 야아아옹! (기대하는 소리)", sound: "food" },
+  { keys: ["사랑", "예뻐", "귀여", "착해", "쓰다듬", "이뻐"], ko: "애정 표현", meow: "그르르릉~ (편안한 소리)", sound: "affection" },
+  { keys: ["놀", "장난", "이리", "와봐"], ko: "놀자", meow: "먀악! 먀악! (들뜬 소리)", sound: "play" },
+  { keys: ["미안", "괜찮", "안돼", "하지마"], ko: "진정", meow: "...야옹. (낮은 소리)", sound: "calm" },
 ];
+
+const catAudio = new Audio();
+catAudio.preload = "auto";
 
 document.getElementById("sayBtn").onclick = () => {
   const text = document.getElementById("humanText").value.trim();
   if (!text) return;
   const hit = HUMAN_TO_CAT.find((m) => m.keys.some((k) => text.includes(k)))
-    || { ko: "중립", meow: "야옹? (갸웃하는 소리)" };
+    || { ko: "중립", meow: "야옹? (갸웃하는 소리)", sound: "neutral" };
   document.getElementById("humanResult").classList.add("show");
-  document.getElementById("humanMeow").textContent = hit.meow;
+  document.getElementById("humanMeow").textContent = hit.meow + " 🔊";
   document.getElementById("humanKo").textContent = `의도: ${hit.ko}`;
   document.getElementById("humanDisc").textContent =
-    "※ 사람→고양이 번역은 과학적 근거가 없는 재미용 기능입니다.";
-  beepMeow();
+    "※ 실제 고양이 울음(CatMeows 데이터)을 재생합니다. 사람→고양이 번역은 과학적 근거 없는 재미용입니다.";
+  playCat(hit.sound);
 };
 
-function beepMeow() {
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const o = ctx.createOscillator(), g = ctx.createGain();
-  o.type = "sawtooth";
-  o.frequency.setValueAtTime(700, ctx.currentTime);
-  o.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.4);
-  g.gain.setValueAtTime(0.15, ctx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-  o.connect(g); g.connect(ctx.destination);
-  o.start(); o.stop(ctx.currentTime + 0.5);
+function playCat(name) {
+  catAudio.src = `./sounds/${name}.wav`;
+  catAudio.currentTime = 0;
+  catAudio.play().catch(() => {});
 }
