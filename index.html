@@ -48,7 +48,22 @@
   </div>
 
   <div class="card">
-    <h2>② 사람 → 고양이 <span style="font-size:.7rem;color:var(--muted)">(재미용)</span></h2>
+    <h2>② 영상 행동분석 <span style="font-size:.7rem;color:var(--muted)">(실험적)</span></h2>
+    <input type="file" id="videoFile" accept="video/*" style="margin-bottom:10px;color:var(--muted);font-size:.85rem" />
+    <video id="videoEl" controls playsinline style="width:100%;border-radius:12px;display:none;margin-bottom:10px;background:#000"></video>
+    <button id="analyzeBtn" disabled>🎬 행동 분석</button>
+    <div class="status" id="vidStatus"></div>
+    <div class="result" id="vidResult">
+      <div class="label" id="vidLabel"></div>
+      <div class="msg" id="vidMsg"></div>
+      <div class="bars" id="vidMetrics"></div>
+      <div class="disc" id="vidDisc"></div>
+    </div>
+    <canvas id="vidCanvas" style="display:none"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>③ 사람 → 고양이 <span style="font-size:.7rem;color:var(--muted)">(재미용)</span></h2>
     <input type="text" id="humanText" placeholder="예: 밥 줄게 / 사랑해 / 놀자" />
     <button id="sayBtn">🔊 고양이 말로 변환</button>
     <div class="result" id="humanResult">
@@ -58,6 +73,9 @@
     </div>
   </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <script type="module" src="app.js"></script>
+<script type="module" src="video.js"></script>
 </body>
 </html>

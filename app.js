@@ -65,6 +65,7 @@ function predict(feats) {
 }
 
 function showCat(d) {
+  window.lastCatAudio = d; // 영상 모듈과의 융합용
   document.getElementById("catResult").classList.add("show");
   document.getElementById("catLabel").textContent = `${d.ko} (${Math.round(d.confidence * 100)}%)`;
   document.getElementById("catMsg").textContent = d.message;
