@@ -2,59 +2,113 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>🐱 고양이 통역기 (MVP)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<meta name="theme-color" content="#15111f" />
+<title>🐱 고양이 통역기</title>
 <style>
-  :root { --bg:#1a1625; --card:#241f33; --accent:#a78bfa; --text:#ece9f5; --muted:#9b94b3; }
-  * { box-sizing:border-box; }
-  body { margin:0; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg);
-    color:var(--text); display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:20px; }
-  h1 { font-size:1.6rem; margin:.4em 0; }
-  .sub { color:var(--muted); font-size:.85rem; margin-bottom:1.2em; text-align:center; }
-  .card { background:var(--card); border-radius:18px; padding:22px; width:100%; max-width:440px;
-    margin-bottom:18px; box-shadow:0 8px 24px rgba(0,0,0,.3); }
-  .card h2 { font-size:1.05rem; margin:0 0 14px; }
-  button { background:var(--accent); color:#1a1625; border:none; border-radius:12px;
-    padding:12px 18px; font-size:1rem; font-weight:600; cursor:pointer; width:100%; }
-  button:disabled { opacity:.5; cursor:not-allowed; }
-  button.rec { background:#f87171; color:#fff; }
-  input[type=text] { width:100%; padding:12px; border-radius:12px; border:1px solid #3a3350;
-    background:#1c1830; color:var(--text); font-size:1rem; margin-bottom:10px; }
-  .result { margin-top:16px; padding:14px; border-radius:12px; background:#1c1830; display:none; }
-  .result.show { display:block; }
-  .label { font-size:1.4rem; font-weight:700; color:var(--accent); }
-  .msg { margin-top:6px; }
-  .bars { margin-top:10px; font-size:.8rem; color:var(--muted); }
-  .bar { height:8px; background:#3a3350; border-radius:4px; margin:3px 0; overflow:hidden; }
-  .bar > div { height:100%; background:var(--accent); }
-  .disc { color:var(--muted); font-size:.72rem; margin-top:8px; }
-  .status { font-size:.8rem; color:var(--muted); margin-top:8px; min-height:1em; }
+  :root {
+    --bg:#15111f; --bg2:#1d1730; --card:#241f38; --card2:#2c2645;
+    --accent:#a78bfa; --accent2:#7c6cf0; --text:#f0edf8; --muted:#9b94b3;
+    --good:#4ade80; --warn:#fbbf24; --bad:#f87171; --line:#3a3350;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%, #2a2147 0%, var(--bg) 55%);
+    color:var(--text); display:flex; flex-direction:column; align-items:center;
+    min-height:100vh; padding:24px 16px 48px;
+  }
+  header { text-align:center; margin-bottom:22px; }
+  h1 { font-size:1.9rem; margin:.2em 0; letter-spacing:-.02em; }
+  h1 .em { filter:drop-shadow(0 2px 6px rgba(167,139,250,.5)); }
+  .sub { color:var(--muted); font-size:.84rem; line-height:1.5; max-width:420px; }
+  .sub b { color:var(--accent); }
+
+  .card {
+    background:linear-gradient(180deg, var(--card2), var(--card));
+    border:1px solid rgba(167,139,250,.12); border-radius:20px;
+    padding:22px; width:100%; max-width:440px; margin-bottom:16px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35); transition:transform .2s, box-shadow .2s;
+  }
+  .card h2 { font-size:1.06rem; margin:0 0 16px; display:flex; align-items:center; gap:8px; }
+  .tag { font-size:.65rem; font-weight:600; color:var(--accent); background:rgba(167,139,250,.14);
+    padding:3px 8px; border-radius:20px; margin-left:auto; }
+
+  button {
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
+    color:#140f22; border:none; border-radius:14px; padding:14px 18px;
+    font-size:1rem; font-weight:700; cursor:pointer; width:100%;
+    transition:transform .12s, filter .2s, opacity .2s;
+  }
+  button:hover:not(:disabled) { filter:brightness(1.08); }
+  button:active:not(:disabled) { transform:scale(.97); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.rec { background:linear-gradient(135deg,#fb7185,#ef4444); color:#fff; }
+  .btn-row { display:flex; gap:8px; }
+  .btn-row .ghost { flex:0 0 auto; width:auto; background:transparent; border:1px solid var(--line);
+    color:var(--text); padding:14px 16px; }
+
+  .rec-dot { display:inline-block; width:10px; height:10px; border-radius:50%;
+    background:#fff; margin-right:7px; animation:pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.4;transform:scale(.8);} }
+
+  input[type=text] { width:100%; padding:13px 14px; border-radius:14px; border:1px solid var(--line);
+    background:#1b1630; color:var(--text); font-size:1rem; margin-bottom:10px; outline:none; transition:border .2s; }
+  input[type=text]:focus { border-color:var(--accent); }
+  input[type=file] { width:100%; color:var(--muted); font-size:.82rem; margin-bottom:12px; }
+  input[type=file]::file-selector-button { background:var(--card2); color:var(--accent);
+    border:1px solid var(--line); border-radius:10px; padding:8px 12px; margin-right:10px; cursor:pointer; }
+  video { width:100%; border-radius:14px; display:none; margin-bottom:12px; background:#000; }
+
+  .result { margin-top:16px; padding:16px; border-radius:14px;
+    background:rgba(0,0,0,.22); border:1px solid var(--line); display:none; }
+  .result.show { display:block; animation:slidein .35s ease; }
+  @keyframes slidein { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:none;} }
+  .label { font-size:1.45rem; font-weight:800; color:var(--accent); display:flex; align-items:center; gap:9px; }
+  .label .ico { font-size:1.6rem; }
+  .msg { margin-top:7px; line-height:1.5; }
+  .bars { margin-top:14px; font-size:.78rem; color:var(--muted); }
+  .bars .row { display:flex; justify-content:space-between; margin:9px 0 4px; }
+  .bar { height:9px; background:#322b4d; border-radius:5px; overflow:hidden; }
+  .bar > div { height:100%; width:0; border-radius:5px;
+    background:linear-gradient(90deg,var(--accent2),var(--accent)); transition:width .7s cubic-bezier(.2,.8,.2,1); }
+  .disc { color:var(--muted); font-size:.72rem; margin-top:12px; line-height:1.5;
+    border-top:1px dashed var(--line); padding-top:10px; }
+  .status { font-size:.82rem; color:var(--muted); margin-top:10px; min-height:1.1em; }
+  .spin { display:inline-block; width:13px; height:13px; border:2px solid var(--line);
+    border-top-color:var(--accent); border-radius:50%; animation:rot .8s linear infinite; margin-right:7px; vertical-align:-2px; }
+  @keyframes rot { to{ transform:rotate(360deg); } }
+
+  footer { color:var(--muted); font-size:.72rem; text-align:center; margin-top:14px; line-height:1.6; }
+  footer a { color:var(--accent); text-decoration:none; }
 </style>
 </head>
 <body>
-  <h1>🐱 고양이 통역기</h1>
-  <div class="sub">MVP · 울음소리로 감정·의도를 <b>추정</b>합니다 (CatMeows 데이터 학습)<br>
-    ※ 정확한 "번역"이 아니라 분류 결과입니다</div>
+  <header>
+    <h1><span class="em">🐱</span> 고양이 통역기</h1>
+    <div class="sub">울음소리·영상으로 고양이의 감정·의도를 <b>추정</b>합니다 · CatMeows 데이터 학습<br>
+      ※ 정확한 "번역"이 아니라 AI 분류·추정 결과예요</div>
+  </header>
 
   <div class="card">
-    <h2>① 고양이 → 사람</h2>
-    <button id="recBtn">🎙️ 녹음 시작</button>
+    <h2>🎙️ 고양이 → 사람 <span class="tag">소리 분석</span></h2>
+    <button id="recBtn">녹음 시작</button>
     <div class="status" id="catStatus"></div>
     <div class="result" id="catResult">
-      <div class="label" id="catLabel"></div>
+      <div class="label"><span class="ico" id="catIco">🐾</span><span id="catLabel"></span></div>
       <div class="msg" id="catMsg"></div>
       <div class="bars" id="catBars"></div>
     </div>
   </div>
 
   <div class="card">
-    <h2>② 영상 행동분석 <span style="font-size:.7rem;color:var(--muted)">(실험적)</span></h2>
-    <input type="file" id="videoFile" accept="video/*" style="margin-bottom:10px;color:var(--muted);font-size:.85rem" />
-    <video id="videoEl" controls playsinline style="width:100%;border-radius:12px;display:none;margin-bottom:10px;background:#000"></video>
-    <button id="analyzeBtn" disabled>🎬 행동 분석</button>
+    <h2>🎬 영상 행동분석 <span class="tag">실험적</span></h2>
+    <input type="file" id="videoFile" accept="video/*" />
+    <video id="videoEl" controls playsinline></video>
+    <button id="analyzeBtn" disabled>행동 분석</button>
     <div class="status" id="vidStatus"></div>
     <div class="result" id="vidResult">
-      <div class="label" id="vidLabel"></div>
+      <div class="label"><span class="ico" id="vidIco">📹</span><span id="vidLabel"></span></div>
       <div class="msg" id="vidMsg"></div>
       <div class="bars" id="vidMetrics"></div>
       <div class="disc" id="vidDisc"></div>
@@ -63,15 +117,23 @@
   </div>
 
   <div class="card">
-    <h2>③ 사람 → 고양이 <span style="font-size:.7rem;color:var(--muted)">(재미용)</span></h2>
+    <h2>💬 사람 → 고양이 <span class="tag">재미용</span></h2>
     <input type="text" id="humanText" placeholder="예: 밥 줄게 / 사랑해 / 놀자" />
-    <button id="sayBtn">🔊 고양이 말로 변환</button>
+    <div class="btn-row">
+      <button id="sayBtn">🔊 고양이 말로 변환</button>
+      <button id="replayBtn" class="ghost" title="다시 듣기" style="display:none">🔁</button>
+    </div>
     <div class="result" id="humanResult">
-      <div class="label" id="humanMeow"></div>
+      <div class="label"><span class="ico" id="humanIco">🐱</span><span id="humanMeow"></span></div>
       <div class="msg" id="humanKo"></div>
       <div class="disc" id="humanDisc"></div>
     </div>
   </div>
+
+  <footer>
+    🐾 브라우저에서 동작 · 녹음 데이터는 외부로 전송되지 않아요<br>
+    소리 출처: CatMeows (CC BY) · <a href="https://github.com/ipobrief/cat-translator" target="_blank">소스코드</a>
+  </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>

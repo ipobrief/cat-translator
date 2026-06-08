@@ -22,7 +22,7 @@ fileInput.onchange = () => {
 async function loadModel() {
   if (model) return model;
   if (!window.cocoSsd) throw new Error("모델 라이브러리 로드 실패(인터넷 확인)");
-  vidStatus.textContent = "AI 모델 로드 중... (최초 1회, 잠시만요)";
+  vidStatus.innerHTML = `<span class="spin"></span>AI 모델 로드 중... (최초 1회, 잠시만요)`;
   model = await window.cocoSsd.load({ base: "lite_mobilenet_v2" });
   return model;
 }
@@ -63,7 +63,7 @@ analyzeBtn.onclick = async () => {
     for (let i = 0; i < N; i++) {
       await seek(dur * (i + 0.5) / N);
       frames.push(await detectCat());
-      vidStatus.textContent = `프레임 분석 중... ${i + 1}/${N}`;
+      vidStatus.innerHTML = `<span class="spin"></span>프레임 분석 중... ${i + 1}/${N}`;
     }
 
     const found = frames.filter(Boolean);
@@ -116,14 +116,20 @@ function classify(motion, aspect, sizeVar) {
   return { behavior: "explore", ko: "탐색 중 · 차분", msg: "천천히 움직이며 주변을 살피는 차분한 상태로 보여요." };
 }
 
+const BEH_ICO = { active: "🤸", relaxed: "😌", alert: "👀", explore: "🔍" };
+
 function showResult(b) {
   document.getElementById("vidResult").classList.add("show");
+  document.getElementById("vidIco").textContent = BEH_ICO[b.behavior] || "❓";
   document.getElementById("vidLabel").textContent =
     b.conf ? `${b.ko} (신뢰도 ${Math.round(b.conf * 100)}%)` : b.ko;
   document.getElementById("vidMsg").textContent = b.msg;
   document.getElementById("vidMetrics").innerHTML = Object.entries(b.metrics || {})
-    .map(([k, v]) => `<div>${k} ${Math.round(v * 100)}%</div>
-      <div class="bar"><div style="width:${Math.round(v * 100)}%"></div></div>`).join("");
+    .map(([k, v]) => `<div class="row"><span>${k}</span><span>${Math.round(v * 100)}%</span></div>
+      <div class="bar"><div data-w="${(v * 100).toFixed(1)}"></div></div>`).join("");
+  requestAnimationFrame(() => {
+    document.querySelectorAll("#vidMetrics .bar > div").forEach((el) => { el.style.width = el.dataset.w + "%"; });
+  });
   document.getElementById("vidDisc").textContent =
     "※ 움직임·자세 비율 기반의 실험적 추정입니다. 꼬리·귀 등 정밀 신호는 분석하지 않습니다.";
 }
