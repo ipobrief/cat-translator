@@ -1,17 +1,48 @@
 // 완전 클라이언트용: 녹음 -> dsp.js 특징 -> model.json RandomForest 추론 (서버 불필요)
 import { extractFeatures } from "./lib/dsp.js";
 
-let recording = false, audioCtx, stream, processor, source, chunks = [], sampleRate = 16000;
-let MODEL = null, recTimer = null, recStart = 0;
+let recording = false, audioCtx, stream, recNode, source, chunks = [], sampleRate = 16000;
+let MODEL = null, recTimer = null, recStart = 0, maxRecTimer = null;
+
+const MAX_REC_SEC = 15; // 자동 중지 (메모리 보호)
+const MODEL_VER = "3";  // model.json 갱신 시 올려서 캐시 무효화
 
 const recBtn = document.getElementById("recBtn");
 const catStatus = document.getElementById("catStatus");
 
-// 모델 로드
-fetch("./model.json").then((r) => r.json()).then((m) => { MODEL = m; })
-  .catch(() => { catStatus.textContent = "모델 로드 실패 (model.json 확인)"; });
+// 모델 로드 — 완료 전엔 녹음 버튼 비활성
+recBtn.disabled = true;
+recBtn.textContent = "모델 로딩 중...";
+fetch(`./model.json?v=${MODEL_VER}`).then((r) => r.json()).then((m) => {
+  MODEL = m;
+  recBtn.disabled = false;
+  recBtn.textContent = "녹음 시작";
+}).catch(() => { catStatus.textContent = "모델 로드 실패 — 인터넷 연결을 확인하고 새로고침해 주세요."; });
 
 recBtn.onclick = async () => { if (!recording) await startRec(); else await stopRec(); };
+
+// AudioWorklet 녹음 노드 (구형 브라우저는 ScriptProcessor 폴백)
+async function makeRecorder(ctx) {
+  if (ctx.audioWorklet) {
+    const code = `class Rec extends AudioWorkletProcessor {
+      process(inputs) {
+        const ch = inputs[0][0];
+        if (ch) this.port.postMessage(ch.slice(0));
+        return true;
+      }
+    } registerProcessor("rec", Rec);`;
+    const url = URL.createObjectURL(new Blob([code], { type: "application/javascript" }));
+    try {
+      await ctx.audioWorklet.addModule(url);
+      const node = new AudioWorkletNode(ctx, "rec");
+      node.port.onmessage = (e) => { if (recording) chunks.push(e.data); };
+      return node;
+    } finally { URL.revokeObjectURL(url); }
+  }
+  const sp = ctx.createScriptProcessor(4096, 1, 1);
+  sp.onaudioprocess = (e) => { if (recording) chunks.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+  return sp;
+}
 
 async function startRec() {
   try {
@@ -21,37 +52,71 @@ async function startRec() {
     });
   } catch { catStatus.textContent = "마이크 권한이 필요합니다."; return; }
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  await audioCtx.resume(); // iOS Safari: suspended 상태 해제
   sampleRate = audioCtx.sampleRate;
   source = audioCtx.createMediaStreamSource(stream);
-  processor = audioCtx.createScriptProcessor(4096, 1, 1);
   chunks = [];
-  processor.onaudioprocess = (e) => chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
-  source.connect(processor); processor.connect(audioCtx.destination);
   recording = true;
+  recNode = await makeRecorder(audioCtx);
+  source.connect(recNode); recNode.connect(audioCtx.destination);
   recBtn.innerHTML = "■ 녹음 중지"; recBtn.classList.add("rec");
   recStart = Date.now();
   const tick = () => {
     const s = ((Date.now() - recStart) / 1000).toFixed(1);
-    catStatus.innerHTML = `<span class="rec-dot"></span>녹음 중 ${s}s · 고양이 소리를 들려주세요`;
+    catStatus.innerHTML = `<span class="rec-dot"></span>녹음 중 ${s}s · 고양이 소리를 들려주세요 (최대 ${MAX_REC_SEC}초)`;
   };
   tick(); recTimer = setInterval(tick, 100);
+  maxRecTimer = setTimeout(() => { if (recording) stopRec(); }, MAX_REC_SEC * 1000);
 }
 
 async function stopRec() {
   recording = false;
-  clearInterval(recTimer);
+  clearInterval(recTimer); clearTimeout(maxRecTimer);
   recBtn.innerHTML = "녹음 시작"; recBtn.classList.remove("rec");
-  processor.disconnect(); source.disconnect();
+  recNode.disconnect(); source.disconnect();
   stream.getTracks().forEach((t) => t.stop());
   await audioCtx.close();
-  if (!MODEL) { catStatus.textContent = "모델을 불러오는 중입니다. 잠시 후 다시 시도해 주세요."; return; }
 
   catStatus.innerHTML = `<span class="spin"></span>분석 중...`;
+  // 스피너가 실제로 그려지도록 한 프레임 양보 후 무거운 계산 시작
+  await new Promise((r) => setTimeout(r, 50));
+
   const pcm = flatten(chunks);
   if (pcm.length < sampleRate * 0.2) { catStatus.textContent = "녹음이 너무 짧아요. 다시 시도해 주세요."; return; }
-  const feats = extractFeatures(pcm, sampleRate);
+  // 소리 활동 구간(첫~마지막 울음)만 잘라 분석 — 무음·잡음 구간 제거
+  const seg = pickActiveSpan(pcm, sampleRate);
+  const feats = extractFeatures(seg, sampleRate);
   showCat(predict(feats));
   catStatus.textContent = "";
+}
+
+// RMS 기준 활동 구간(첫 소리~마지막 소리)을 보존해 잘라냄.
+// 학습 클립이 울음 전체(연속 울음 포함)라서 한 구간만 자르면 오히려 어긋남 — 내장 샘플로 검증된 방식.
+function pickActiveSpan(pcm, sr) {
+  const frame = Math.round(sr * 0.05); // 50ms
+  const n = Math.floor(pcm.length / frame);
+  if (n < 4) return pcm;
+  const rms = new Array(n);
+  for (let i = 0; i < n; i++) {
+    let s = 0;
+    for (let j = i * frame; j < (i + 1) * frame; j++) s += pcm[j] * pcm[j];
+    rms[i] = Math.sqrt(s / frame);
+  }
+  let pi = 0;
+  for (let i = 1; i < n; i++) if (rms[i] > rms[pi]) pi = i;
+  if (rms[pi] < 1e-4) return pcm;
+  const thr = rms[pi] * 0.03;
+  let first = -1, last = -1;
+  for (let i = 0; i < n; i++) if (rms[i] > thr) { if (first < 0) first = i; last = i; }
+  if (first < 0) return pcm;
+  const pad = Math.round(sr * 0.1);
+  let a = Math.max(0, first * frame - pad), b = Math.min(pcm.length, (last + 1) * frame + pad);
+  const maxLen = sr * 6; // 너무 길면 피크 중심으로 6초만
+  if (b - a > maxLen) {
+    const c = Math.round((pi + 0.5) * frame);
+    a = Math.max(a, Math.min(c - maxLen / 2, b - maxLen)); b = a + maxLen;
+  }
+  return pcm.slice(a, b);
 }
 
 // ---- 내장 샘플로 모델 점검 (도메인 내 깨끗한 소리엔 잘 맞는지 확인) ----

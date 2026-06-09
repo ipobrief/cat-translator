@@ -93,8 +93,8 @@
   <div class="card">
     <h2>🎙️ 고양이 → 사람 <span class="tag">소리 분석</span></h2>
     <div class="btn-row">
-      <button id="recBtn">녹음 시작</button>
-      <button id="sampleBtn" class="ghost" title="내장 샘플로 모델 점검">🔎</button>
+      <button id="recBtn" disabled>모델 로딩 중...</button>
+      <button id="sampleBtn" class="ghost" title="내장 샘플로 모델 점검" aria-label="내장 샘플로 모델 점검">🔎</button>
     </div>
     <div class="status" id="catStatus"></div>
     <div class="result" id="catResult">
@@ -124,7 +124,7 @@
     <input type="text" id="humanText" placeholder="예: 밥 줄게 / 사랑해 / 놀자" />
     <div class="btn-row">
       <button id="sayBtn">🔊 고양이 말로 변환</button>
-      <button id="replayBtn" class="ghost" title="다시 듣기" style="display:none">🔁</button>
+      <button id="replayBtn" class="ghost" title="다시 듣기" aria-label="고양이 소리 다시 듣기" style="display:none">🔁</button>
     </div>
     <div class="result" id="humanResult">
       <div class="label"><span class="ico" id="humanIco">🐱</span><span id="humanMeow"></span></div>

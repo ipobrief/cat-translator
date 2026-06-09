@@ -106,14 +106,23 @@ analyzeBtn.onclick = async () => {
   }
 };
 
+// 점수 기반 분류 — 한 지표가 임계값을 살짝 넘었다고 단정하지 않고,
+// 여러 신호를 합산해 가장 높은 행동을 고름 (임계값은 미보정 휴리스틱)
 function classify(motion, aspect, sizeVar) {
-  if (motion > 0.12 || sizeVar > 0.05)
-    return { behavior: "active", ko: "활발 · 놀고 싶거나 흥분", msg: "많이 움직여요. 놀이 욕구가 높거나 들떠 있는 상태일 수 있어요." };
-  if (aspect > 1.4)
-    return { behavior: "relaxed", ko: "편안 · 안정", msg: "옆으로 늘어진 자세로 가만히 있어요. 편안하고 안정된 상태로 보여요." };
-  if (aspect < 0.85)
-    return { behavior: "alert", ko: "경계 · 긴장", msg: "웅크린 자세예요. 주변을 경계하거나 긴장했을 수 있어요." };
-  return { behavior: "explore", ko: "탐색 중 · 차분", msg: "천천히 움직이며 주변을 살피는 차분한 상태로 보여요." };
+  const scores = {
+    active:  2.5 * clamp(motion / 0.12) + 1.5 * clamp(sizeVar / 0.05),
+    relaxed: 1.5 * clamp((aspect - 1.1) / 0.5) + 1.0 * clamp(1 - motion / 0.06),
+    alert:   1.5 * clamp((1.0 - aspect) / 0.3) + 0.8 * clamp(1 - motion / 0.08),
+    explore: 1.0, // 기본값 — 다른 신호가 약하면 탐색으로
+  };
+  const DESC = {
+    active:  { ko: "활발 · 놀고 싶거나 흥분", msg: "많이 움직여요. 놀이 욕구가 높거나 들떠 있는 상태일 수 있어요." },
+    relaxed: { ko: "편안 · 안정", msg: "옆으로 늘어진 자세로 가만히 있어요. 편안하고 안정된 상태로 보여요." },
+    alert:   { ko: "경계 · 긴장", msg: "웅크린 자세예요. 주변을 경계하거나 긴장했을 수 있어요." },
+    explore: { ko: "탐색 중 · 차분", msg: "천천히 움직이며 주변을 살피는 차분한 상태로 보여요." },
+  };
+  const best = Object.keys(scores).reduce((a, b) => (scores[b] > scores[a] ? b : a));
+  return { behavior: best, ...DESC[best] };
 }
 
 const BEH_ICO = { active: "🤸", relaxed: "😌", alert: "👀", explore: "🔍" };
