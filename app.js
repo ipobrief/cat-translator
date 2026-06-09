@@ -14,8 +14,12 @@ fetch("./model.json").then((r) => r.json()).then((m) => { MODEL = m; })
 recBtn.onclick = async () => { if (!recording) await startRec(); else await stopRec(); };
 
 async function startRec() {
-  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-  catch { catStatus.textContent = "마이크 권한이 필요합니다."; return; }
+  try {
+    // 음성용 자동처리 끄기 (고양이 소리/음량을 망가뜨리지 않도록)
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    });
+  } catch { catStatus.textContent = "마이크 권한이 필요합니다."; return; }
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   sampleRate = audioCtx.sampleRate;
   source = audioCtx.createMediaStreamSource(stream);
@@ -50,6 +54,37 @@ async function stopRec() {
   catStatus.textContent = "";
 }
 
+// ---- 내장 샘플로 모델 점검 (도메인 내 깨끗한 소리엔 잘 맞는지 확인) ----
+const SAMPLE_TESTS = [
+  { file: "food", expect: "F", name: "밥 기다림 소리" },
+  { file: "affection", expect: "B", name: "브러싱 소리" },
+  { file: "calm", expect: "I", name: "불안(격리) 소리" },
+];
+document.getElementById("sampleBtn").onclick = async () => {
+  if (!MODEL) { catStatus.textContent = "모델 로딩 중..."; return; }
+  catStatus.innerHTML = `<span class="spin"></span>내장 샘플 점검 중...`;
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const lines = [];
+  for (const t of SAMPLE_TESTS) {
+    try {
+      const buf = await fetch(`./sounds/${t.file}.wav`).then((r) => r.arrayBuffer());
+      const audio = await ctx.decodeAudioData(buf);
+      const pcm = audio.getChannelData(0);
+      const r = predict(extractFeatures(pcm, audio.sampleRate));
+      const ok = r.label === t.expect;
+      lines.push(`${ok ? "✅" : "❌"} ${t.name} → ${r.ko} (${Math.round(r.confidence * 100)}%)`);
+    } catch (e) { lines.push(`⚠️ ${t.name}: ${e.message}`); }
+  }
+  ctx.close();
+  document.getElementById("catResult").classList.add("show");
+  document.getElementById("catIco").textContent = "🔎";
+  document.getElementById("catLabel").textContent = "모델 점검 결과";
+  document.getElementById("catMsg").innerHTML = lines.join("<br>") +
+    "<br><span style='color:var(--muted);font-size:.8rem'>샘플이 잘 맞으면 모델은 정상 — 실제 녹음이 안 맞는 건 마이크/환경 차이 때문이에요.</span>";
+  document.getElementById("catBars").innerHTML = "";
+  catStatus.textContent = "";
+};
+
 // ---- RandomForest 추론 ----
 function predict(feats) {
   const { scaler, trees, classes, labels } = MODEL;
@@ -76,9 +111,19 @@ const CAT_NAME = { B: "브러싱", F: "밥 기다림", I: "불안/외로움" };
 function showCat(d) {
   window.lastCatAudio = d; // 영상 모듈과의 융합용
   document.getElementById("catResult").classList.add("show");
-  document.getElementById("catIco").textContent = CAT_ICO[d.label] || "🐾";
-  document.getElementById("catLabel").textContent = `${d.ko} (${Math.round(d.confidence * 100)}%)`;
-  document.getElementById("catMsg").textContent = d.message;
+
+  // 확신 게이팅: 1·2위 확률 차가 작으면 "불확실"로 정직하게 표시
+  const sorted = Object.values(d.all).sort((a, b) => b - a);
+  const margin = sorted[0] - (sorted[1] || 0);
+  const uncertain = d.confidence < 0.5 || margin < 0.15;
+
+  document.getElementById("catIco").textContent = uncertain ? "🤔" : (CAT_ICO[d.label] || "🐾");
+  document.getElementById("catLabel").textContent = uncertain
+    ? `잘 모르겠어요 (${d.ko} 추정 ${Math.round(d.confidence * 100)}%)`
+    : `${d.ko} (${Math.round(d.confidence * 100)}%)`;
+  document.getElementById("catMsg").textContent = uncertain
+    ? "소리가 또렷하지 않거나 학습한 상황과 달라요. 조용한 곳에서 고양이에게 가까이 대고 1~2초 녹음해 보세요."
+    : d.message;
   document.getElementById("catBars").innerHTML = Object.entries(d.all)
     .sort((a, b) => b[1] - a[1])
     .map(([k, v]) => `<div class="row"><span>${CAT_ICO[k] || ""} ${CAT_NAME[k] || k}</span><span>${Math.round(v * 100)}%</span></div>
